@@ -35,7 +35,7 @@ from tqdm.auto import tqdm
 # wikipedia: retrieval
 def prompts_for_split(split: str) -> Tuple[str, str]:
     if split == "amazonqa":
-        return "Question Answering", "Retrieval-document"
+        return "InstructionRetrieval", "Retrieval-document"
     # Default for these two: retrieval
     return "Retrieval-query", "Retrieval-document"
 
@@ -196,15 +196,15 @@ def main():
     )
 
     # Enable gradient checkpointing on the underlying HF model if available
-    if args.gradient_checkpointing:
-        try:
-            backbone = getattr(student, "modules", [student])[0]
-            auto_model = getattr(backbone, "auto_model", None)
-            if auto_model and hasattr(auto_model, "gradient_checkpointing_enable"):
-                auto_model.gradient_checkpointing_enable()
-                print("[info] Enabled gradient checkpointing.")
-        except Exception as e:
-            print(f"[warn] gradient_checkpointing_enable failed: {e}")
+    # if args.gradient_checkpointing:
+    #     try:
+    #         backbone = getattr(student, "modules", [student])[0]
+    #         auto_model = getattr(backbone, "auto_model", None)
+    #         if auto_model and hasattr(auto_model, "gradient_checkpointing_enable"):
+    #             auto_model.gradient_checkpointing_enable()
+    #             print("[info] Enabled gradient checkpointing.")
+    #     except Exception as e:
+    #         print(f"[warn] gradient_checkpointing_enable failed: {e}")
 
     # DeepSpeed ZeRO-3 (optional)
     ds_cfg = None
