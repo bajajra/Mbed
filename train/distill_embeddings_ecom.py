@@ -185,7 +185,7 @@ def main():
     )
 
     # Student
-    student_kwargs = {"seq_len": args.max_seq_length}
+    student_kwargs = {"max_seqlen": args.max_seq_length}
     if args.flash_attn:
         # Only applied if backbone supports it (BERTs may ignore).
         student_kwargs["attn_implementation"] = "flash_attention_2"
