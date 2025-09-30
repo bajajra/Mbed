@@ -122,7 +122,7 @@ def distill_chunk(student: SentenceTransformer,
     labels = [None] * len(examples)
     for p_name, idxs in by_prompt.items():
         batch_texts = [examples[i]["text"] for i in idxs]
-        vecs = teacher_encode(teacher, batch_texts, prompt_name=p_name, batch_size=1024)
+        vecs = teacher_encode(teacher, batch_texts, prompt_name=p_name, batch_size=128)
         for i, v in zip(idxs, vecs):
             labels[i] = v
 
