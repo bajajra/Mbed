@@ -26,3 +26,7 @@ torchrun --nproc_per_node=8 distill_embeddings_ecom.py \
   --chunk_pairs 300000 --epochs_per_chunk 1 \
   --per_device_train_batch_size 64 --grad_accum 4
 ```
+
+```bash
+python preprocess.py --teacher google/embeddinggemma-300m --splits amazonqa wikipedia --batch-size 512 --output-dir data/embedded --bf16
+```
