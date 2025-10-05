@@ -83,13 +83,13 @@ def _embed_batch(batch: Dict[str, List[str]], rank, devices: List[str], teacher:
     device = f"cuda:{(rank or 0) % torch.cuda.device_count()}"
     model = _get_or_init_model(device, teacher, bf16)
 
-    query_embeddings = model.encode(batch["query"], batch_size=batch_size,
-                                    convert_to_numpy=True, show_progress_bar=False)
+    # query_embeddings = model.encode(batch["query"], batch_size=batch_size,
+    #                                 convert_to_numpy=True, show_progress_bar=False)
     document_embeddings = model.encode(batch["document"], batch_size=batch_size,
                                        convert_to_numpy=True, show_progress_bar=False)
 
     return {
-        "query_embedding": np.asarray(query_embeddings).tolist(),
+        # "query_embedding": np.asarray(query_embeddings).tolist(),
         "document_embedding": np.asarray(document_embeddings).tolist(),
     }
     
