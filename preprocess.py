@@ -77,9 +77,10 @@ def _get_or_init_model(device: str, teacher: str, bf16: bool) -> SentenceTransfo
     return model
 
 
-def _embed_batch(batch: Dict[str, List[str]], *, devices: List[str], teacher: str,
+def _embed_batch(batch: Dict[str, List[str]], rank, devices: List[str], teacher: str,
                  bf16: bool, batch_size: int) -> Dict[str, List[List[float]]]:
-    device = _select_device(devices)
+    
+    device = f"cuda:{(rank or 0) % torch.cuda.device_count()}"
     model = _get_or_init_model(device, teacher, bf16)
 
     query_embeddings = model.encode(batch["query"], batch_size=batch_size,
@@ -91,41 +92,10 @@ def _embed_batch(batch: Dict[str, List[str]], *, devices: List[str], teacher: st
         "query_embedding": np.asarray(query_embeddings).tolist(),
         "document_embedding": np.asarray(document_embeddings).tolist(),
     }
+    
 
-
-def _process_split(split: str, args: argparse.Namespace, devices: List[str]) -> Dataset:
-    dataset = load_dataset(args.dataset, split=split, cache_dir=args.cache_dir)
-
-    if args.limit is not None:
-        effective_limit = min(len(dataset), args.limit)
-        dataset = dataset.select(range(effective_limit))
-
-    required_columns = {"query", "document"}
-    missing = required_columns.difference(dataset.column_names)
-    if missing:
-        raise ValueError(f"Split '{split}' missing required columns: {', '.join(sorted(missing))}")
-
-    num_proc = _resolve_num_proc(args.num_proc, devices)
-    dataset = dataset.map(
-        _embed_batch,
-        batched=True,
-        batch_size=args.batch_size,
-        num_proc=num_proc,
-        load_from_cache_file=False,
-        fn_kwargs={
-            "devices": devices,
-            "teacher": args.teacher,
-            "bf16": args.bf16,
-            "batch_size": args.batch_size,
-        },
-        desc=f"Embedding split '{split}'",
-    )
-
-    dataset = dataset.add_column("split", [split] * len(dataset))
-    return dataset
-
-
-def main() -> None:
+if __name__ == "__main__":
+    set_start_method("spawn")
     parser = build_argparser()
     args = parser.parse_args()
 
@@ -133,7 +103,38 @@ def main() -> None:
 
     processed_splits: List[Dataset] = []
     for split in args.splits:
-        processed_splits.append(_process_split(split, args, devices))
+
+        dataset = load_dataset(args.dataset, split=split, cache_dir=args.cache_dir)
+
+        if args.limit is not None:
+            effective_limit = min(len(dataset), args.limit)
+            dataset = dataset.select(range(effective_limit))
+
+        required_columns = {"query", "document"}
+        missing = required_columns.difference(dataset.column_names)
+        if missing:
+            raise ValueError(f"Split '{split}' missing required columns: {', '.join(sorted(missing))}")
+
+        num_proc = _resolve_num_proc(args.num_proc, devices)
+        dataset = dataset.map(
+            _embed_batch,
+            batched=True,
+            batch_size=args.batch_size,
+            num_proc=torch.cuda.device_count(),
+            load_from_cache_file=False,
+            with_rank=True,
+            fn_kwargs={
+                "devices": devices,
+                "teacher": args.teacher,
+                "bf16": args.bf16,
+                "batch_size": args.batch_size,
+            },
+            desc=f"Embedding split '{split}'",
+        )
+
+        dataset = dataset.add_column("split", [split] * len(dataset))
+
+        processed_splits.append(dataset)
 
     combined = processed_splits[0] if len(processed_splits) == 1 else concatenate_datasets(processed_splits)
 
@@ -142,8 +143,3 @@ def main() -> None:
     _ensure_dir(output_dir)
 
     combined.save_to_disk(output_dir)
-
-
-if __name__ == "__main__":
-    set_start_method("spawn")
-    main()
