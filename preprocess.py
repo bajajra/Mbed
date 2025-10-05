@@ -1,7 +1,7 @@
 import argparse
 import os
 from typing import Dict, List, Optional
-
+from multiprocess import set_start_method
 import numpy as np
 import torch
 from datasets import Dataset, concatenate_datasets, load_dataset
@@ -145,4 +145,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    set_start_method("spawn")
     main()
