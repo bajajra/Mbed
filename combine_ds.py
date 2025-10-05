@@ -50,8 +50,8 @@ if __name__ == "__main__":
     _datasets = [load_from_disk(path) for path in args.ds_path]
     dataset: Dataset = concatenate_datasets(_datasets)
 
-    if args.field_type not in dataset.column_names:
-        raise ValueError(f"Field '{args.field_type}' not found in dataset columns: {', '.join(sorted(dataset.column_names))}")
+    if args.field not in dataset.column_names:
+        raise ValueError(f"Field '{args.field}' not found in dataset columns: {', '.join(sorted(dataset.column_names))}")
 
     dataset = process_ds(dataset, args.field)
 
