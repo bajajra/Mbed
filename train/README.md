@@ -30,3 +30,7 @@ torchrun --nproc_per_node=8 distill_embeddings_ecom.py \
 ```bash
 python preprocess.py --teacher google/embeddinggemma-300m --splits amazonqa wikipedia --batch-size 512 --output-dir data/embedded --bf16
 ```
+
+```bash
+python distil_ecom.py --ds_path query_combined_ds_ph1 docs_combined_ds_ph1 --grad_accum 4 --gradient_checkpointing --flash_attn --bf16 --output-dir ./trained_models/
+```
