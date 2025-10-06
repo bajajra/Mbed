@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer, models, losses, SentenceTransformerTrainer, SentenceTransformerTrainingArguments, evaluation
-from datasets import Dataset, concatenate_datasets, load_dataset
+from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 import argparse
 import os
 import logging
@@ -82,8 +82,8 @@ if __name__ == "__main__":
         "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
     })
 
-    query_ds = Dataset.from_json(args.ds_path[0])
-    doc_ds = Dataset.from_json(args.ds_path[1])
+    query_ds = load_from_disk(args.ds_path[0])
+    doc_ds = load_from_disk(args.ds_path[1])
 
     combined_ds = concatenate_datasets([query_ds, doc_ds])
 
