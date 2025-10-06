@@ -12,7 +12,7 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--output_dir", required=True, help="Where to save checkpoints/final model.")
     p.add_argument("--teacher", default="google/embeddinggemma-300m")
     p.add_argument("--seq_len", default=2048, type=int, help="Max sequence length")
-
+    p.add_argument("--epochs", type=int, default=1)
     p.add_argument("--per_device_train_batch_size", type=int, default=64)
     p.add_argument("--per_device_eval_batch_size", type=int, default=64)
     p.add_argument("--lr", type=float, default=1e-5)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     # Required parameter:
     output_dir=args.output_dir,
     # Optional training parameters:
-    num_train_epochs=args.epochs_per_chunk,
+    num_train_epochs=args.epochs,
     per_device_train_batch_size=args.per_device_train_batch_size,
     per_device_eval_batch_size=args.per_device_eval_batch_size,
     warmup_ratio=0.1,
