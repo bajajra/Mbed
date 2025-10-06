@@ -39,8 +39,8 @@ if __name__ == "__main__":
 
     if  mode=="full":
         print("Fine-tuning full model")
-        model = SentenceTransformer(args.student, device="cuda", dtype=torch.bfloat16 if args.bf16 else torch.float32, model_kwargs={
-        "attn_implementation": "flash_attention_2", "max_seq_length":args.seq_len
+        model = SentenceTransformer(args.student, device="cuda", model_kwargs={
+        "attn_implementation": "flash_attention_2", "max_seq_length":args.seq_len, "torch_dtype": torch.bfloat16
     })
         
     elif mode=="global_layers":
@@ -55,8 +55,8 @@ if __name__ == "__main__":
             pooling_mode_mean_tokens=True
         )
 
-        model = SentenceTransformer(modules=[word_embedding, pooling], dtype=torch.bfloat16 if args.bf16 else torch.float32, model_kwargs={
-        "attn_implementation": "flash_attention_2"
+        model = SentenceTransformer(modules=[word_embedding, pooling], device='cuda' ,model_kwargs={
+        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
     })
         # Freeze everything in the Student backbone
         hf = word_embedding.auto_model  # This is a Hugging Face StudentModel
@@ -78,8 +78,8 @@ if __name__ == "__main__":
     elif mode=="projection":
         print("Fine-tuning only the projection head")
 
-    teacher_model = SentenceTransformer(args.teacher, device="cuda", dtype=torch.bfloat16 if args.bf16 else torch.float32, model_kwargs={
-        "attn_implementation": "flash_attention_2"
+    teacher_model = SentenceTransformer(args.teacher, device="cuda" ,model_kwargs={
+        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
     })
 
     query_ds = Dataset.from_json(args.ds_path[0])
