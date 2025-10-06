@@ -115,7 +115,7 @@ if __name__ == "__main__":
     gradient_accumulation_steps=args.grad_accum,
     logging_steps=args.logging_steps,
     run_name="{}-{}-nomic-unsupervised-mse".format(args.student.split("/")[-1], mode),
-    max_seq_length=args.seq_len,
+    seed=args.seed,
 )
 
 trainer = SentenceTransformerTrainer(
