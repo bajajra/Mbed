@@ -40,8 +40,8 @@ if __name__ == "__main__":
     if  mode=="full":
         print("Fine-tuning full model")
         model = SentenceTransformer(args.student, device="cuda", model_kwargs={
-        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
-    })
+        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16,
+    }, tokenizer_args={'max_seq_length': args.seq_len})
         
     elif mode=="global_layers":
         print("Fine-tuning only global attention layers")
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
         model = SentenceTransformer(modules=[word_embedding, pooling], device='cuda' ,model_kwargs={
         "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
-    })
+    }, tokenizer_args={'max_seq_length': args.seq_len})
         # Freeze everything in the Student backbone
         hf = word_embedding.auto_model  # This is a Hugging Face StudentModel
         for p in hf.parameters():
@@ -125,7 +125,6 @@ trainer = SentenceTransformerTrainer(
     eval_dataset=eval_dataset,
     loss=train_loss,
     evaluator=dev_evaluator_mse,
-    max_seq_length=args.seq_len,
 )
 
 trainer.train()
