@@ -119,6 +119,7 @@ if __name__ == "__main__":
     logging_steps=args.logging_steps,
     run_name="{}-{}-nomic-unsupervised-mse".format(args.student.split("/")[-1], mode),
     seed=args.seed,
+    report_to=["tensorboard"],
 )
 
 trainer = SentenceTransformerTrainer(
