@@ -40,7 +40,7 @@ if __name__ == "__main__":
     if  mode=="full":
         print("Fine-tuning full model")
         model = SentenceTransformer(args.student, device="cuda", model_kwargs={
-        "attn_implementation": "flash_attention_2", "max_seq_length":args.seq_len, "torch_dtype": torch.bfloat16
+        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
     })
         
     elif mode=="global_layers":
@@ -115,6 +115,7 @@ if __name__ == "__main__":
     gradient_accumulation_steps=args.grad_accum,
     logging_steps=args.logging_steps,
     run_name="{}-{}-nomic-unsupervised-mse".format(args.student.split("/")[-1], mode),
+    max_seq_length=args.seq_len,
 )
 
 trainer = SentenceTransformerTrainer(
@@ -124,6 +125,7 @@ trainer = SentenceTransformerTrainer(
     eval_dataset=eval_dataset,
     loss=train_loss,
     evaluator=dev_evaluator_mse,
+    max_seq_length=args.seq_len,
 )
 
 trainer.train()
