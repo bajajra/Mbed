@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer, models, losses, SentenceTransformerTrainer, SentenceTransformerTrainingArguments, evaluation
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
+from transformers import DefaultDataCollator
 import argparse
 import os
 import logging
@@ -30,6 +31,14 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--ds_path", nargs="*", required=True,
                         help="Dataset paths to process")
     return p
+
+
+class MseDataCollator(DefaultDataCollator):
+    def __call__(self, features):
+        batch = super().__call__(features)
+        if "label" in batch:
+            batch["label"] = batch["label"].to(torch.bfloat16)
+        return batch
 
 
 
@@ -137,7 +146,7 @@ trainer = SentenceTransformerTrainer(
     eval_dataset=eval_dataset,
     loss=train_loss,
     evaluator=dev_evaluator_mse,
-    # data_collator=DefaultDataCollator(),
+    data_collator=MseDataCollator(),
 )
 
 trainer.train()
