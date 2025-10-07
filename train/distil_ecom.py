@@ -31,11 +31,7 @@ def build_argparser() -> argparse.ArgumentParser:
                         help="Dataset paths to process")
     return p
 
-def convert_to_bf16(batch):
-    if "label" in batch and batch["label"]:
-        # Ensure label is a list of tensors, as expected by the trainer
-        batch["label"] = [torch.tensor(embedding, dtype=torch.bfloat16) for embedding in batch["label"]]
-    return batch
+
 
 if __name__ == "__main__":
 
@@ -95,7 +91,7 @@ if __name__ == "__main__":
     
     combined_ds = concatenate_datasets([query_ds, doc_ds])
     combined_ds = combined_ds.select_columns(["sentence", "label"])
-    combined_ds.set_format("torch", output_all_columns=True, dtypes=torch.bfloat16)
+    combined_ds = combined_ds.with_format("torch")
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
