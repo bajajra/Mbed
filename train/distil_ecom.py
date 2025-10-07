@@ -1,12 +1,17 @@
-from sentence_transformers import SentenceTransformer, models, losses, SentenceTransformerTrainer, SentenceTransformerTrainingArguments, evaluation
+from sentence_transformers import (
+    SentenceTransformer,
+    SentenceTransformerTrainer,
+    SentenceTransformerTrainingArguments,
+    models,
+    losses,
+    evaluation,
+)
+from sentence_transformers.data_collator import SentenceTransformerDataCollator
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
-from transformers import DefaultDataCollator
 import argparse
 import os
-import logging
-from typing import List, Tuple
 import torch
-from torch.nn import MSELoss as TorchMSELoss
+from typing import List, Tuple
 
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser()
@@ -25,73 +30,46 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--logging_steps", type=int, default=50)
     p.add_argument("--save_total_limit", type=int, default=3)
-
     p.add_argument("--gradient_checkpointing", action="store_true")
     p.add_argument("--flash_attn", action="store_true")
     p.add_argument("--mode", choices=["full", "global_layers", "projection"], default="full")
-    p.add_argument("--ds_path", nargs="*", required=True,
-                        help="Dataset paths to process")
+    p.add_argument("--ds_path", nargs="*", required=True, help="Dataset paths to process")
     return p
 
-
-class MseDataCollator(DefaultDataCollator):
-    valid_label_columns = ("label",)
-    def __call__(self, features):
-        batch = super().__call__(features)
-        if "label" in batch:
-            batch["label"] = batch["label"].to(torch.bfloat16)
-        return batch
-
-
-class CustomMSELoss(torch.nn.Module):
-    def __init__(self):
-        super(CustomMSELoss, self).__init__()
-        self.loss_fct = TorchMSELoss()
-
-    def forward(self, model_output: dict, labels: torch.Tensor) -> torch.Tensor:
-        student_embeddings = model_output["sentence_embedding"]
-        teacher_embeddings = labels
-        return self.loss_fct(student_embeddings, teacher_embeddings)
-
-
 if __name__ == "__main__":
-
     ap = build_argparser()
     args = ap.parse_args()
     mode = args.mode
 
     torch._dynamo.config.disable = True
 
-    if  mode=="full":
+    # 1. & 2. Initialize the student model
+    if mode == "full":
         print("Fine-tuning full model")
-        model = SentenceTransformer(args.student, device="cuda", model_kwargs={
-        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16,
-    })
-        
-    elif mode=="global_layers":
+        model = SentenceTransformer(
+            args.student,
+            device="cuda",
+            model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
+        )
+    elif mode == "global_layers":
         print("Fine-tuning only global attention layers")
         word_embedding = models.Transformer(
-        args.student,
-        max_seq_length=args.seq_len,
-    )
-
-        pooling = models.Pooling(
-            word_embedding.get_word_embedding_dimension(),
-            pooling_mode_mean_tokens=True
+            args.student,
+            max_seq_length=args.seq_len,
+            model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
         )
+        pooling = models.Pooling(word_embedding.get_word_embedding_dimension(), pooling_mode_mean_tokens=True)
+        model = SentenceTransformer(modules=[word_embedding, pooling], device="cuda")
 
-        model = SentenceTransformer(modules=[word_embedding, pooling], device='cuda' ,model_kwargs={
-        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
-    })
         # Freeze everything in the Student backbone
-        hf = word_embedding.auto_model  # This is a Hugging Face StudentModel
+        hf = word_embedding.auto_model
         for p in hf.parameters():
             p.requires_grad = False
 
         stride = int(getattr(hf.config, "global_attn_every_n_layers", 3))
         global_layers = []
-        for i, layer in enumerate(hf.layers):           # ModernBertModel exposes `layers: ModuleList[...]`
-            if i % stride == 0:                         # 0, n, 2n, ...
+        for i, layer in enumerate(hf.layers):
+            if i % stride == 0:
                 for p in layer.parameters():
                     p.requires_grad = True
                 global_layers.append(i)
@@ -99,58 +77,66 @@ if __name__ == "__main__":
         trainable = [n for n, p in model.named_parameters() if p.requires_grad]
         print(f"Global-attention layers unfrozen: {global_layers}")
         print(f"Number of trainable tensors: {len(trainable)}")
-
-    elif mode=="projection":
+    elif mode == "projection":
         print("Fine-tuning only the projection head")
+        # Add projection-only fine-tuning logic here if needed
+        exit()
 
-    teacher_model = SentenceTransformer(args.teacher, device="cuda" ,model_kwargs={
-        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
-    })
+    # 3. Initialize the teacher model
+    teacher_model = SentenceTransformer(
+        args.teacher,
+        device="cuda",
+        model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
+    )
 
+    # 4. Load the dataset
     query_ds = load_from_disk(args.ds_path[0])
     doc_ds = load_from_disk(args.ds_path[1])
-    
     combined_ds = concatenate_datasets([query_ds, doc_ds])
     combined_ds = combined_ds.select_columns(["sentence", "label"])
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
 
+    # 5. Initialize the loss function
+    train_loss = losses.MSELoss(model=model)
 
-    train_loss = CustomMSELoss()
+    # 6. Create a data collator
+    # This is the key change: Use the library's own data collator
+    data_collator = SentenceTransformerDataCollator(
+        tokenizer=model.tokenizer, is_pretokenized=False, use_bfloat16=args.bf16
+    )
 
+    # 7. Create an evaluator
     eval_sentences = eval_dataset["sentence"]
-
     dev_evaluator_mse = evaluation.MSEEvaluator(eval_sentences, eval_sentences, teacher_model=teacher_model)
 
     model.max_seq_length = args.seq_len
-    model.tokenizer.model_max_length = args.seq_len
+    if hasattr(model.tokenizer, "model_max_length"):
+        model.tokenizer.model_max_length = args.seq_len
 
+    # 8. Define the training arguments
     training_args = SentenceTransformerTrainingArguments(
-    # Required parameter:
-    output_dir=args.output_dir,
-    # Optional training parameters:
-    num_train_epochs=args.epochs,
-    per_device_train_batch_size=args.per_device_train_batch_size,
-    per_device_eval_batch_size=args.per_device_eval_batch_size,
-    warmup_ratio=0.1,
-    bf16=True,  # Set to True if you have a GPU that supports BF16
-    # metric_for_best_model="eval_sts-dev_spearman_cosine",
-    learning_rate=args.lr,
-    # Optional tracking/debugging parameters:
-    eval_strategy="steps",
-    eval_steps=0.1,
-    save_strategy="steps",
-    save_steps=0.1,
-    save_total_limit=args.save_total_limit,
-    gradient_accumulation_steps=args.grad_accum,
-    logging_steps=args.logging_steps,
-    run_name="{}-{}-nomic-unsupervised-mse".format(args.student.split("/")[-1], mode),
-    seed=args.seed,
-    report_to=["tensorboard"],
-    # dataloader_pin_memory=False,
-)
+        output_dir=args.output_dir,
+        num_train_epochs=args.epochs,
+        per_device_train_batch_size=args.per_device_train_batch_size,
+        per_device_eval_batch_size=args.per_device_eval_batch_size,
+        warmup_ratio=0.1,
+        bf16=args.bf16,
+        learning_rate=args.lr,
+        eval_strategy="steps",
+        eval_steps=0.1,
+        save_strategy="steps",
+        save_steps=0.1,
+        save_total_limit=args.save_total_limit,
+        gradient_accumulation_steps=args.grad_accum,
+        logging_steps=args.logging_steps,
+        run_name=f"{args.student.split('/')[-1]}-{mode}-nomic-unsupervised-mse",
+        seed=args.seed,
+        report_to=["tensorboard"],
+    )
 
+    # 9. Create the trainer
     trainer = SentenceTransformerTrainer(
         model=model,
         args=training_args,
@@ -158,10 +144,12 @@ if __name__ == "__main__":
         eval_dataset=eval_dataset,
         loss=train_loss,
         evaluator=dev_evaluator_mse,
-        data_collator=MseDataCollator(),
+        data_collator=data_collator,
     )
 
+    # 10. Train the model
     trainer.train()
 
+    # 11. Save the final model
     final_output_dir = f"{args.output_dir}/final"
     model.save(final_output_dir)
