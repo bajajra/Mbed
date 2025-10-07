@@ -142,7 +142,7 @@ if __name__ == "__main__":
     eval_dataset = split_ds["test"]
 
 
-    train_loss = CustomMSELoss()
+    train_loss = CustomMSELoss(model=model)
 
     eval_sentences = eval_dataset["sentence"]
 
