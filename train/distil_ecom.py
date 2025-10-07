@@ -128,7 +128,7 @@ if __name__ == "__main__":
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=args.per_device_eval_batch_size,
         warmup_ratio=0.1,
-        bf16=False,
+        bf16=True,
         fp16=False,
         learning_rate=args.lr,
         eval_strategy="steps",
