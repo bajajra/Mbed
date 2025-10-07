@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # combined_ds = combined_ds.map(convert_to_bfloat16, num_proc=64)
     print(combined_ds)
     print(combined_ds[0])
-    print(f"Labels type: {type(combined_ds[0]['label'])}, dtype: {combined_ds[0]['label'].dtype}")
+    print(f"Labels type: {type(combined_ds[0]['label'])}")
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
