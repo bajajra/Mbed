@@ -44,12 +44,37 @@ class MseDataCollator(DefaultDataCollator):
 
 
 class CustomMSELoss(torch.nn.Module):
-    def __init__(self):
+    """
+    Computes the MSE loss between the model's sentence embeddings and the target embeddings.
+
+    This loss function is designed to work with the SentenceTransformerTrainer and expects
+    the model to be passed during initialization. The forward pass receives the features
+    and labels from the trainer, generates student embeddings, and computes the loss
+    against the teacher embeddings (labels).
+
+    Args:
+        model (SentenceTransformer): The student model.
+    """
+    def __init__(self, model: torch.nn.Module):
         super(CustomMSELoss, self).__init__()
+        self.model = model
         self.loss_fct = TorchMSELoss()
 
-    def forward(self, model_output, labels):
-        student_embeddings = model_output["sentence_embedding"]
+    def forward(self, features: dict, labels: torch.Tensor) -> torch.Tensor:
+        """
+        Computes the loss.
+
+        Args:
+            features (dict): A dictionary containing the input features. The trainer
+                             passes the model's output here.
+            labels (torch.Tensor): The teacher embeddings.
+
+        Returns:
+            torch.Tensor: The computed loss.
+        """
+        # The SentenceTransformerTrainer passes the model's output as the 'features' argument.
+        # The actual labels from the dataset are passed as the 'labels' argument.
+        student_embeddings = features["sentence_embedding"]
         teacher_embeddings = labels
         return self.loss_fct(student_embeddings, teacher_embeddings)
 
