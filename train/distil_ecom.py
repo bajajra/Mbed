@@ -128,10 +128,7 @@ if __name__ == "__main__":
     # dataloader_pin_memory=False,
 )
 
-def collate_fn(batch):
-    sentences = [item['sentence'] for item in batch]
-    labels = [item['label'] for item in batch]
-    return sentences, torch.tensor(labels, dtype=torch.bfloat16)
+from sentence_transformers.training_args import DefaultDataCollator
 
 trainer = SentenceTransformerTrainer(
     model=model,
@@ -140,7 +137,7 @@ trainer = SentenceTransformerTrainer(
     eval_dataset=eval_dataset,
     loss=train_loss,
     evaluator=dev_evaluator_mse,
-    data_collator=collate_fn,
+    data_collator=DefaultDataCollator(),
 )
 
 trainer.train()
