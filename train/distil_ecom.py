@@ -86,7 +86,7 @@ if __name__ == "__main__":
     doc_ds = load_from_disk(args.ds_path[1])
 
     combined_ds = concatenate_datasets([query_ds, doc_ds])
-
+    combined_ds = combined_ds.select_columns(["sentence", "label"])
     split_ds = combined_ds.rename_column("sentence", "text").rename_column("label", "labels") \
                       .train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
