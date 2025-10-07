@@ -128,7 +128,22 @@ if __name__ == "__main__":
     # dataloader_pin_memory=False,
 )
 
-from sentence_transformers.training_args import DefaultDataCollator
+from sentence_transformers.training_args import BatchEncoding
+from typing import List, Dict, Any
+
+class DefaultDataCollator:
+    def __call__(self, features: List[Dict[str, Any]]) -> BatchEncoding:
+        # Create a new list of features to avoid modifying the original batch
+        processed_features = []
+        for feature in features:
+            # Create a copy of the feature to avoid modifying it in-place
+            processed_feature = feature.copy()
+            # Ensure the label is a bfloat16 tensor
+            processed_feature["label"] = torch.tensor(processed_feature["label"], dtype=torch.bfloat16)
+            processed_features.append(processed_feature)
+        
+        # Default collate behavior for other fields
+        return torch.utils.data.dataloader.default_collate(processed_features)
 
 trainer = SentenceTransformerTrainer(
     model=model,
