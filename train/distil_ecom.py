@@ -37,6 +37,8 @@ if __name__ == "__main__":
     args = ap.parse_args()
     mode = args.mode
 
+    torch._dynamo.config.disable = True
+
     if  mode=="full":
         print("Fine-tuning full model")
         model = SentenceTransformer(args.student, device="cuda", model_kwargs={
