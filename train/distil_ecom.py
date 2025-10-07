@@ -55,7 +55,8 @@ if __name__ == "__main__":
         model = SentenceTransformer(
             args.student,
             device="cuda",
-            model_kwargs={"attn_implementation": "flash_attention_2", "dtype": torch.bfloat16},
+            model_kwargs={"attn_implementation": "flash_attention_2", #"dtype": torch.bfloat16
+                          },
         )
     elif mode == "global_layers":
         print("Fine-tuning only global attention layers")
@@ -92,7 +93,8 @@ if __name__ == "__main__":
     teacher_model = SentenceTransformer(
         args.teacher,
         device="cuda",
-        model_kwargs={"attn_implementation": "flash_attention_2", "dtype": torch.bfloat16},
+        model_kwargs={"attn_implementation": "flash_attention_2", #"dtype": torch.bfloat16
+                      },
     )
 
     # Load the dataset
