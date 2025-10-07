@@ -53,14 +53,14 @@ if __name__ == "__main__":
         model = SentenceTransformer(
             args.student,
             device="cuda",
-            model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
+            model_kwargs={"attn_implementation": "flash_attention_2", "dtype": torch.bfloat16},
         )
     elif mode == "global_layers":
         print("Fine-tuning only global attention layers")
         word_embedding = models.Transformer(
             args.student,
             max_seq_length=args.seq_len,
-            model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
+            model_kwargs={"attn_implementation": "flash_attention_2", "dtype": torch.bfloat16},
         )
         pooling = models.Pooling(word_embedding.get_word_embedding_dimension(), pooling_mode_mean_tokens=True)
         model = SentenceTransformer(modules=[word_embedding, pooling], device="cuda")
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     teacher_model = SentenceTransformer(
         args.teacher,
         device="cuda",
-        model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
+        model_kwargs={"attn_implementation": "flash_attention_2", "dtype": torch.bfloat16},
     )
 
     # Load the dataset
@@ -99,6 +99,8 @@ if __name__ == "__main__":
     combined_ds = concatenate_datasets([query_ds, doc_ds])
     combined_ds = combined_ds.select_columns(["sentence", "label"])
     combined_ds = combined_ds.map(convert_to_bfloat16, num_proc=64)
+    print(combined_ds)
+    print(combined_ds[0])
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
@@ -121,7 +123,7 @@ if __name__ == "__main__":
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=args.per_device_eval_batch_size,
         warmup_ratio=0.1,
-        bf16=args.bf16,
+        bf16=True,
         learning_rate=args.lr,
         eval_strategy="steps",
         eval_steps=0.1,
