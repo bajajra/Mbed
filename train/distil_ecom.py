@@ -36,9 +36,9 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--ds_path", nargs="*", required=True, help="Dataset paths to process")
     return p
 
-def convert_to_bfloat16(example):
-    example["label"] = torch.tensor(example["label"], dtype=torch.bfloat16)
-    return example
+# def convert_to_bfloat16(example):
+#     example["label"] = torch.tensor(example["label"], dtype=torch.bfloat16).to(torch.bfloat16)
+#     return example
 
 if __name__ == "__main__":
     ap = build_argparser()
@@ -98,9 +98,10 @@ if __name__ == "__main__":
     doc_ds = load_from_disk(args.ds_path[1])
     combined_ds = concatenate_datasets([query_ds, doc_ds])
     combined_ds = combined_ds.select_columns(["sentence", "label"])
-    combined_ds = combined_ds.map(convert_to_bfloat16, num_proc=64)
+    # combined_ds = combined_ds.map(convert_to_bfloat16, num_proc=64)
     print(combined_ds)
     print(combined_ds[0])
+    print(f"Labels type: {type(combined_ds[0]['label'])}, dtype: {combined_ds[0]['label'].dtype}")
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
