@@ -6,6 +6,7 @@ import os
 import logging
 from typing import List, Tuple
 import torch
+from torch.nn import MSELoss as TorchMSELoss
 
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser()
@@ -41,6 +42,16 @@ class MseDataCollator(DefaultDataCollator):
             batch["label"] = batch["label"].to(torch.bfloat16)
         return batch
 
+
+class CustomMSELoss(torch.nn.Module):
+    def __init__(self):
+        super(CustomMSELoss, self).__init__()
+        self.loss_fct = TorchMSELoss()
+
+    def forward(self, model_output, labels):
+        student_embeddings = model_output["sentence_embedding"]
+        teacher_embeddings = labels
+        return self.loss_fct(student_embeddings, teacher_embeddings)
 
 
 if __name__ == "__main__":
@@ -106,7 +117,7 @@ if __name__ == "__main__":
     eval_dataset = split_ds["test"]
 
 
-    train_loss = losses.MSELoss(model=model)
+    train_loss = CustomMSELoss()
 
     eval_sentences = eval_dataset["sentence"]
 
@@ -140,17 +151,17 @@ if __name__ == "__main__":
     # dataloader_pin_memory=False,
 )
 
-trainer = SentenceTransformerTrainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,
-    loss=train_loss,
-    evaluator=dev_evaluator_mse,
-    data_collator=MseDataCollator(),
-)
+    trainer = SentenceTransformerTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        loss=train_loss,
+        evaluator=dev_evaluator_mse,
+        data_collator=MseDataCollator(),
+    )
 
-trainer.train()
+    trainer.train()
 
-final_output_dir = f"{args.output_dir}/final"
-model.save(final_output_dir)
+    final_output_dir = f"{args.output_dir}/final"
+    model.save(final_output_dir)
