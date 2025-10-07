@@ -98,7 +98,7 @@ if __name__ == "__main__":
     doc_ds = load_from_disk(args.ds_path[1])
     combined_ds = concatenate_datasets([query_ds, doc_ds])
     combined_ds = combined_ds.select_columns(["sentence", "label"])
-    combined_ds.map(convert_to_bfloat16, num_proc=64)
+    combined_ds = combined_ds.map(convert_to_bfloat16, num_proc=64)
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
     # Create an evaluator
     eval_sentences = eval_dataset["sentence"]
-    dev_evaluator_mse = evaluation.MSEEvaluator(eval_sentences, eval_sentences, teacher_model=teacher_model)
+    # dev_evaluator_mse = evaluation.MSEEvaluator(eval_sentences, eval_sentences, teacher_model=teacher_model)
 
     model.max_seq_length = args.seq_len
     if hasattr(model.tokenizer, "model_max_length"):
@@ -144,7 +144,7 @@ if __name__ == "__main__":
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         loss=train_loss,
-        evaluator=dev_evaluator_mse,
+        # evaluator=dev_evaluator_mse,
     )
 
     # Train the model
