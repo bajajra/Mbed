@@ -6,6 +6,7 @@ from sentence_transformers import (
     losses,
     evaluation,
 )
+from sentence_transformers.data_collator import SentenceTransformerDataCollator
 from datasets import Dataset, concatenate_datasets, load_dataset, load_from_disk
 import argparse
 import os
@@ -42,7 +43,7 @@ if __name__ == "__main__":
 
     torch._dynamo.config.disable = True
 
-    # Initialize the student model
+    # 1. & 2. Initialize the student model
     if mode == "full":
         print("Fine-tuning full model")
         model = SentenceTransformer(
@@ -76,19 +77,19 @@ if __name__ == "__main__":
         trainable = [n for n, p in model.named_parameters() if p.requires_grad]
         print(f"Global-attention layers unfrozen: {global_layers}")
         print(f"Number of trainable tensors: {len(trainable)}")
-    else: # mode == "projection"
+    elif mode == "projection":
         print("Fine-tuning only the projection head")
         # Add projection-only fine-tuning logic here if needed
         exit()
 
-    # Initialize the teacher model
+    # 3. Initialize the teacher model
     teacher_model = SentenceTransformer(
         args.teacher,
         device="cuda",
         model_kwargs={"attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16},
     )
 
-    # Load the dataset
+    # 4. Load the dataset
     query_ds = load_from_disk(args.ds_path[0])
     doc_ds = load_from_disk(args.ds_path[1])
     combined_ds = concatenate_datasets([query_ds, doc_ds])
@@ -97,10 +98,16 @@ if __name__ == "__main__":
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
 
-    # Initialize the loss function
+    # 5. Initialize the loss function
     train_loss = losses.MSELoss(model=model)
 
-    # Create an evaluator
+    # 6. Create a data collator
+    # This is the key change: Use the library's own data collator
+    data_collator = SentenceTransformerDataCollator(
+        model.tokenizer, is_pretokenized=False, use_bfloat16=args.bf16
+    )
+
+    # 7. Create an evaluator
     eval_sentences = eval_dataset["sentence"]
     dev_evaluator_mse = evaluation.MSEEvaluator(eval_sentences, eval_sentences, teacher_model=teacher_model)
 
@@ -108,7 +115,7 @@ if __name__ == "__main__":
     if hasattr(model.tokenizer, "model_max_length"):
         model.tokenizer.model_max_length = args.seq_len
 
-    # Define the training arguments
+    # 8. Define the training arguments
     training_args = SentenceTransformerTrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.epochs,
@@ -129,9 +136,7 @@ if __name__ == "__main__":
         report_to=["tensorboard"],
     )
 
-    # Create the trainer
-    # No custom data collator is needed. The trainer will use the default one
-    # which works correctly with MSELoss.
+    # 9. Create the trainer
     trainer = SentenceTransformerTrainer(
         model=model,
         args=training_args,
@@ -139,11 +144,12 @@ if __name__ == "__main__":
         eval_dataset=eval_dataset,
         loss=train_loss,
         evaluator=dev_evaluator_mse,
+        data_collator=data_collator,
     )
 
-    # Train the model
+    # 10. Train the model
     trainer.train()
 
-    # Save the final model
+    # 11. Save the final model
     final_output_dir = f"{args.output_dir}/final"
     model.save(final_output_dir)
