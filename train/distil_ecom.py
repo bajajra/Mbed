@@ -34,6 +34,7 @@ def build_argparser() -> argparse.ArgumentParser:
 
 
 class MseDataCollator(DefaultDataCollator):
+    valid_label_columns = ("label",)
     def __call__(self, features):
         batch = super().__call__(features)
         if "label" in batch:
