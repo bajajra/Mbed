@@ -63,10 +63,9 @@ if __name__ == "__main__":
         word_embedding = models.Transformer(
             args.student,
             max_seq_length=args.seq_len,
-            model_kwargs={"attn_implementation": "flash_attention_2", "dtype": torch.bfloat16},
         )
         pooling = models.Pooling(word_embedding.get_word_embedding_dimension(), pooling_mode_mean_tokens=True)
-        model = SentenceTransformer(modules=[word_embedding, pooling], device="cuda")
+        model = SentenceTransformer(modules=[word_embedding, pooling], device="cuda", model_kwargs={"attn_implementation": "flash_attention_2"})
 
         # Freeze everything in the Student backbone
         hf = word_embedding.auto_model
@@ -101,7 +100,7 @@ if __name__ == "__main__":
     query_ds = load_from_disk(args.ds_path[0])
     doc_ds = load_from_disk(args.ds_path[1])
     combined_ds = concatenate_datasets([query_ds, doc_ds])
-    combined_ds = combined_ds.select_columns(["sentence", "label"])
+    combined_ds = combined_ds.select_columns(["sentence", "label"]).shuffle(seed=args.seed)
     combined_ds = combined_ds.map(convert_to_bfloat16, num_proc=64)
     print(combined_ds)
     print(combined_ds[0])
