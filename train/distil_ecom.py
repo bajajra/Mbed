@@ -31,8 +31,13 @@ def build_argparser() -> argparse.ArgumentParser:
                         help="Dataset paths to process")
     return p
 
-def convert_to_bf16(feature):
-    {"label": torch.tensor(feature["label"], dtype=torch.bfloat16)}
+def convert_to_bf16(batch):
+    if "label" in batch and batch["label"]:
+        if isinstance(batch["label"][0], list):  # Check if it's a list of lists (embeddings)
+            batch["label"] = [torch.tensor(x, dtype=torch.bfloat16) for x in batch["label"]]
+        else: # Assuming it's a single value or something else that can be converted
+            batch["label"] = torch.tensor(batch["label"], dtype=torch.bfloat16)
+    return batch
 
 if __name__ == "__main__":
 
