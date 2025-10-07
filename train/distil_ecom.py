@@ -87,15 +87,14 @@ if __name__ == "__main__":
 
     combined_ds = concatenate_datasets([query_ds, doc_ds])
     combined_ds = combined_ds.select_columns(["sentence", "label"])
-    split_ds = combined_ds.rename_column("sentence", "text").rename_column("label", "labels") \
-                      .train_test_split(test_size=0.05, seed=args.seed)
+    split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
 
 
     train_loss = losses.MSELoss(model=model)
 
-    eval_sentences = eval_dataset["text"]
+    eval_sentences = eval_dataset["sentence"]
 
     dev_evaluator_mse = evaluation.MSEEvaluator(eval_sentences, eval_sentences, teacher_model=teacher_model)
 
