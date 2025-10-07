@@ -42,7 +42,7 @@ if __name__ == "__main__":
     if  mode=="full":
         print("Fine-tuning full model")
         model = SentenceTransformer(args.student, device="cuda", model_kwargs={
-        "attn_implementation": "flash_attention_2",# "torch_dtype": torch.bfloat16,
+        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16,
     })
         
     elif mode=="global_layers":
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         print("Fine-tuning only the projection head")
 
     teacher_model = SentenceTransformer(args.teacher, device="cuda" ,model_kwargs={
-        "attn_implementation": "flash_attention_2",# "torch_dtype": torch.bfloat16
+        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
     })
 
     query_ds = load_from_disk(args.ds_path[0])
@@ -128,6 +128,11 @@ if __name__ == "__main__":
     # dataloader_pin_memory=False,
 )
 
+def collate_fn(batch):
+    sentences = [item['sentence'] for item in batch]
+    labels = [item['label'] for item in batch]
+    return sentences, torch.tensor(labels, dtype=torch.bfloat16)
+
 trainer = SentenceTransformerTrainer(
     model=model,
     args=training_args,
@@ -135,6 +140,7 @@ trainer = SentenceTransformerTrainer(
     eval_dataset=eval_dataset,
     loss=train_loss,
     evaluator=dev_evaluator_mse,
+    data_collator=collate_fn,
 )
 
 trainer.train()
