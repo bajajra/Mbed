@@ -31,6 +31,9 @@ def build_argparser() -> argparse.ArgumentParser:
                         help="Dataset paths to process")
     return p
 
+def convert_to_bf16(feature):
+    {"label": torch.tensor(feature["label"], dtype=torch.bfloat16)}
+
 if __name__ == "__main__":
 
     ap = build_argparser()
@@ -86,8 +89,9 @@ if __name__ == "__main__":
 
     query_ds = load_from_disk(args.ds_path[0])
     doc_ds = load_from_disk(args.ds_path[1])
-
+    
     combined_ds = concatenate_datasets([query_ds, doc_ds])
+    combined_ds.map(convert_to_bf16, batched=True, batch_size=args.per_device_train_batch_size, num_proc=64)
     combined_ds = combined_ds.select_columns(["sentence", "label"])
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
@@ -128,23 +132,6 @@ if __name__ == "__main__":
     # dataloader_pin_memory=False,
 )
 
-from sentence_transformers.training_args import BatchEncoding
-from typing import List, Dict, Any
-
-class DefaultDataCollator:
-    def __call__(self, features: List[Dict[str, Any]]) -> BatchEncoding:
-        # Create a new list of features to avoid modifying the original batch
-        processed_features = []
-        for feature in features:
-            # Create a copy of the feature to avoid modifying it in-place
-            processed_feature = feature.copy()
-            # Ensure the label is a bfloat16 tensor
-            processed_feature["label"] = torch.tensor(processed_feature["label"], dtype=torch.bfloat16)
-            processed_features.append(processed_feature)
-        
-        # Default collate behavior for other fields
-        return torch.utils.data.dataloader.default_collate(processed_features)
-
 trainer = SentenceTransformerTrainer(
     model=model,
     args=training_args,
@@ -152,7 +139,7 @@ trainer = SentenceTransformerTrainer(
     eval_dataset=eval_dataset,
     loss=train_loss,
     evaluator=dev_evaluator_mse,
-    data_collator=DefaultDataCollator(),
+    # data_collator=DefaultDataCollator(),
 )
 
 trainer.train()
