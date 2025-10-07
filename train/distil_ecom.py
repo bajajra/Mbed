@@ -42,7 +42,7 @@ if __name__ == "__main__":
     if  mode=="full":
         print("Fine-tuning full model")
         model = SentenceTransformer(args.student, device="cuda", model_kwargs={
-        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16,
+        "attn_implementation": "flash_attention_2",# "torch_dtype": torch.bfloat16,
     })
         
     elif mode=="global_layers":
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         print("Fine-tuning only the projection head")
 
     teacher_model = SentenceTransformer(args.teacher, device="cuda" ,model_kwargs={
-        "attn_implementation": "flash_attention_2", "torch_dtype": torch.bfloat16
+        "attn_implementation": "flash_attention_2",# "torch_dtype": torch.bfloat16
     })
 
     query_ds = load_from_disk(args.ds_path[0])
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     run_name="{}-{}-nomic-unsupervised-mse".format(args.student.split("/")[-1], mode),
     seed=args.seed,
     report_to=["tensorboard"],
-    dataloader_pin_memory=False,
+    # dataloader_pin_memory=False,
 )
 
 trainer = SentenceTransformerTrainer(
