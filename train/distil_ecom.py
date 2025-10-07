@@ -33,10 +33,8 @@ def build_argparser() -> argparse.ArgumentParser:
 
 def convert_to_bf16(batch):
     if "label" in batch and batch["label"]:
-        if isinstance(batch["label"][0], list):  # Check if it's a list of lists (embeddings)
-            batch["label"] = [torch.tensor(x, dtype=torch.bfloat16) for x in batch["label"]]
-        else: # Assuming it's a single value or something else that can be converted
-            batch["label"] = torch.tensor(batch["label"], dtype=torch.bfloat16)
+        # Ensure label is a list of tensors, as expected by the trainer
+        batch["label"] = [torch.tensor(embedding, dtype=torch.bfloat16) for embedding in batch["label"]]
     return batch
 
 if __name__ == "__main__":
@@ -96,8 +94,8 @@ if __name__ == "__main__":
     doc_ds = load_from_disk(args.ds_path[1])
     
     combined_ds = concatenate_datasets([query_ds, doc_ds])
-    combined_ds.map(convert_to_bf16, batched=True, batch_size=args.per_device_train_batch_size, num_proc=64)
     combined_ds = combined_ds.select_columns(["sentence", "label"])
+    combined_ds.set_format("torch", output_all_columns=True, dtypes=torch.bfloat16)
     split_ds = combined_ds.train_test_split(test_size=0.05, seed=args.seed)
     train_dataset = split_ds["train"]
     eval_dataset = split_ds["test"]
