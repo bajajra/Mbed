@@ -125,6 +125,7 @@ if __name__ == "__main__":
     run_name="{}-{}-nomic-unsupervised-mse".format(args.student.split("/")[-1], mode),
     seed=args.seed,
     report_to=["tensorboard"],
+    data_pin_memory=False,
 )
 
 trainer = SentenceTransformerTrainer(
